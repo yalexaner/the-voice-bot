@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicebot-prod
+    env_file:
+      - .env
+    volumes:
+      - db_data:/app/data
+      - backups:/app/backups
+    networks:
+      - voicebot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H 'X-Admin-Token: ${ADMIN_HTTP_TOKEN}' http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on: []
+    labels:
+      - "com.voicebot.service=bot"
+      - "com.voicebot.environment=production"
+
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: caddy-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - voicebot-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      - bot
+    labels:
+      - "com.voicebot.service=proxy"
+      - "com.voicebot.environment=production"
+
+volumes:
+  db_data:
+    driver: local
+    labels:
+      - "com.voicebot.volume=database"
+      - "com.voicebot.environment=production"
+  
+  caddy_data:
+    driver: local
+    labels:
+      - "com.voicebot.volume=caddy-data"
+      - "com.voicebot.environment=production"
+  
+  caddy_config:
+    driver: local
+    labels:
+      - "com.voicebot.volume=caddy-config"
+      - "com.voicebot.environment=production"
+  
+  backups:
+    driver: local
+    labels:
+      - "com.voicebot.volume=backups"
+      - "com.voicebot.environment=production"
+
+networks:
+  voicebot-network:
+    driver: bridge
+    labels:
+      - "com.voicebot.network=internal"
+      - "com.voicebot.environment=production"

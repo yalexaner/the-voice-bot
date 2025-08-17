@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicebot-staging
+    env_file:
+      - .env
+    volumes:
+      - db_data:/app/data
+      - backups:/app/backups
+    networks:
+      - voicebot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H 'X-Admin-Token: ${ADMIN_HTTP_TOKEN}' http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on: []
+    labels:
+      - "com.voicebot.service=bot"
+      - "com.voicebot.environment=staging"
+
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: caddy-staging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - voicebot-network
+    restart: unless-stopped
+    depends_on:
+      - bot
+    labels:
+      - "com.voicebot.service=proxy"
+      - "com.voicebot.environment=staging"
+
+volumes:
+  db_data:
+    driver: local
+    labels:
+      - "com.voicebot.volume=database"
+      - "com.voicebot.environment=staging"
+  
+  caddy_data:
+    driver: local
+    labels:
+      - "com.voicebot.volume=caddy-data"
+      - "com.voicebot.environment=staging"
+  
+  caddy_config:
+    driver: local
+    labels:
+      - "com.voicebot.volume=caddy-config"
+      - "com.voicebot.environment=staging"
+  
+  backups:
+    driver: local
+    labels:
+      - "com.voicebot.volume=backups"
+      - "com.voicebot.environment=staging"
+
+networks:
+  voicebot-network:
+    driver: bridge
+    labels:
+      - "com.voicebot.network=internal"
+      - "com.voicebot.environment=staging"
