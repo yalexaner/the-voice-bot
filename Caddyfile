@@ -1,0 +1,65 @@
+# Replace with your actual domain
+your-domain.com {
+  # Enable automatic HTTPS
+  tls {
+    # Use automatic certificate management
+  }
+
+  # Security headers
+  header {
+    # Security headers
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy strict-origin-when-cross-origin
+    
+    # Remove server information
+    -Server
+  }
+
+  # Webhook endpoint - allow only webhook paths
+  handle /webhook/* {
+    reverse_proxy bot:8080 {
+      header_up Host {host}
+      header_up X-Telegram-Bot-Api-Secret-Token {http.request.header.X-Telegram-Bot-Api-Secret-Token}
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+
+  # Admin endpoints - health and metrics
+  handle /health {
+    reverse_proxy bot:8080 {
+      header_up Host {host}
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+
+  handle /metrics {
+    reverse_proxy bot:8080 {
+      header_up Host {host}
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+
+  # Block all other paths
+  handle {
+    respond "Not Found" 404
+  }
+
+  # Access and error logging
+  log {
+    output stdout
+    format json
+  }
+
+  # Error handling
+  handle_errors {
+    respond "Service Unavailable" 503
+  }
+}
