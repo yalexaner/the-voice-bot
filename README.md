@@ -85,7 +85,9 @@ Copy `.env.example` to `.env` and configure:
 | `WEBHOOK_SECRET` | Webhook validation secret (64+ chars) | Yes |
 | `ADMIN_HTTP_TOKEN` | Token for /health and /metrics | Yes |
 | `ENV` | Environment (staging/prod) | No (default: staging) |
-| `PORT` | Server port | No (default: 8080) |
+| `PORT` | Server port (container internal) | No (default: 8080) |
+
+**Note**: Do not change `PORT` inside the container; Caddy reverse proxy expects the bot to run on port 8080.
 
 ## Development
 
@@ -127,7 +129,7 @@ src/main/kotlin/
 ./gradlew build
 
 # Create fat JAR
-./gradlew jar
+./gradlew shadowJar
 
 # Run tests (when implemented)
 ./gradlew test
