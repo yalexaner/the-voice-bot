@@ -11,7 +11,8 @@ data class Config(
     val webhookSecret: String,
     val adminHttpToken: String,
     val env: String = "staging",
-    val port: Int = 8080
+    val port: Int = 8080,
+    val enableTestAcks: Boolean = false
 ) {
     override fun toString(): String {
         return "Config(" +
@@ -22,7 +23,8 @@ data class Config(
             "webhookSecret=***MASKED***, " +
             "adminHttpToken=***MASKED***, " +
             "env='$env', " +
-            "port=$port" +
+            "port=$port, " +
+            "enableTestAcks=$enableTestAcks" +
             ")"
     }
 }
@@ -40,6 +42,7 @@ object ConfigLoader {
         
         val env = System.getenv("ENV") ?: "staging"
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+        val enableTestAcks = System.getenv("ENABLE_TEST_ACKS")?.toBoolean() ?: false
         
         // Validate admin ID
         val telegramAdminId = try {
@@ -95,7 +98,8 @@ object ConfigLoader {
             webhookSecret = webhookSecret!!,
             adminHttpToken = adminHttpToken!!,
             env = env,
-            port = port
+            port = port,
+            enableTestAcks = enableTestAcks
         )
     }
     

@@ -36,6 +36,9 @@ dependencies {
     // Telegram Bot API
     implementation("com.github.pengrad:java-telegram-bot-api:7.9.1")
     
+    // JSON Processing
+    implementation("com.google.code.gson:gson:2.11.0")
+    
     // Database
     implementation("org.xerial:sqlite-jdbc:3.46.0.0")
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")
