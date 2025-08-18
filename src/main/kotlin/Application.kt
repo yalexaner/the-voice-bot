@@ -1,3 +1,5 @@
+import bot.TelegramClient
+import bot.WebhookHandler
 import config.ConfigLoader
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -45,6 +47,12 @@ fun main() {
         kotlin.system.exitProcess(1)
     }
     logger.info("Starting Voice Bot application with config: $config")
+    
+    // initialize telegram client
+    TelegramClient.init(config.telegramBotToken)
+    
+    // configure webhook handler
+    WebhookHandler.configure(config.enableTestAcks)
     
     val startTime = System.currentTimeMillis()
     
@@ -119,9 +127,7 @@ fun main() {
                     return@post
                 }
                 
-                // TODO: Implement webhook handling in later phases
-                logger.info("Webhook received (not yet implemented)")
-                call.respond(HttpStatusCode.OK, mapOf("status" to "received"))
+                WebhookHandler.handle(call)
             }
             
         }
