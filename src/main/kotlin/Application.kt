@@ -5,6 +5,7 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.forwardedheaders.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -37,12 +38,17 @@ data class ErrorResponse(
 )
 
 fun main() {
-    val config = ConfigLoader.load()
+    val config = try {
+        ConfigLoader.load()
+    } catch (e: IllegalStateException) {
+        System.err.println(e.message)
+        kotlin.system.exitProcess(1)
+    }
     logger.info("Starting Voice Bot application with config: $config")
     
     val startTime = System.currentTimeMillis()
     
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
+    embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
         install(ContentNegotiation) {
             json(Json {
                 prettyPrint = true
@@ -51,14 +57,22 @@ fun main() {
             })
         }
         
+        install(ForwardedHeaders)
+        install(XForwardedHeaders)
+        
         install(StatusPages) {
             exception<Throwable> { call, cause ->
-                logger.error("Unhandled exception in request ${call.request.uri}", cause)
+                val clientIp = call.request.headers["X-Forwarded-For"] ?: call.request.local.remoteHost
+                logger.error("Unhandled exception in request ${call.request.uri} from $clientIp", cause)
                 // TODO: Later this will send DM to admin via Telegram
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     ErrorResponse("internal_error", "Internal server error occurred")
                 )
+            }
+            
+            status(HttpStatusCode.NotFound) { call, _ ->
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("not_found", "Endpoint not found"))
             }
         }
         
@@ -99,7 +113,8 @@ fun main() {
                 // Validate webhook secret
                 val telegramSecret = call.request.headers["X-Telegram-Bot-Api-Secret-Token"]
                 if (telegramSecret != config.webhookSecret) {
-                    logger.warn("Invalid webhook secret from ${call.request.origin.remoteHost}")
+                    val clientIp = call.request.headers["X-Forwarded-For"] ?: call.request.local.remoteHost
+                    logger.warn("Invalid webhook secret from $clientIp")
                     call.respond(HttpStatusCode.Unauthorized)
                     return@post
                 }
@@ -109,12 +124,6 @@ fun main() {
                 call.respond(HttpStatusCode.OK, mapOf("status" to "received"))
             }
             
-            // Catch-all for unknown routes
-            route("{...}") {
-                handle {
-                    call.respond(HttpStatusCode.NotFound, ErrorResponse("not_found", "Endpoint not found"))
-                }
-            }
         }
     }.start(wait = true)
 }
