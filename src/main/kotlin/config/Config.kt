@@ -10,17 +10,19 @@ data class Config(
     val webhookPath: String,
     val webhookSecret: String,
     val adminHttpToken: String,
-    val env: String = "staging"
+    val env: String = "staging",
+    val port: Int = 8080
 ) {
     override fun toString(): String {
         return "Config(" +
             "telegramBotToken=***MASKED***, " +
-            "telegramAdminId=$telegramAdminId, " +
+            "telegramAdminId=***MASKED***, " +
             "elevenLabsApiKey=***MASKED***, " +
             "webhookPath=***MASKED***, " +
             "webhookSecret=***MASKED***, " +
             "adminHttpToken=***MASKED***, " +
-            "env='$env'" +
+            "env='$env', " +
+            "port=$port" +
             ")"
     }
 }
@@ -37,6 +39,7 @@ object ConfigLoader {
         val adminHttpToken = getEnvVar("ADMIN_HTTP_TOKEN", errors)
         
         val env = System.getenv("ENV") ?: "staging"
+        val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
         
         // Validate admin ID
         val telegramAdminId = try {
@@ -59,12 +62,29 @@ object ConfigLoader {
             errors.add("WEBHOOK_SECRET should be at least 64 characters for security")
         }
         
+        // Validate ENV value
+        if (env !in listOf("staging", "prod")) {
+            errors.add("ENV must be either 'staging' or 'prod', got: '$env'")
+        }
+        
+        // Validate PORT range
+        if (port !in 1..65535) {
+            errors.add("PORT must be between 1 and 65535, got: $port")
+        }
+        
+        // Warn if PORT is not 8080 in production (Caddy expects 8080)
+        if (env == "prod" && port != 8080) {
+            System.err.println("WARNING: PORT is set to $port in production environment, but Caddy expects 8080. This may break internal routing.")
+        }
+        
         if (errors.isNotEmpty()) {
-            System.err.println("Configuration errors:")
-            errors.forEach { System.err.println("  - $it") }
-            System.err.println("\nPlease check your environment variables and .env file.")
-            System.err.println("See .env.example for required variables.")
-            kotlin.system.exitProcess(1)
+            val errorMessage = buildString {
+                appendLine("Configuration errors:")
+                errors.forEach { appendLine("  - $it") }
+                appendLine("\nPlease check your environment variables and .env file.")
+                appendLine("See .env.example for required variables.")
+            }
+            throw IllegalStateException(errorMessage)
         }
         
         return Config(
@@ -74,7 +94,8 @@ object ConfigLoader {
             webhookPath = webhookPath!!,
             webhookSecret = webhookSecret!!,
             adminHttpToken = adminHttpToken!!,
-            env = env
+            env = env,
+            port = port
         )
     }
     
