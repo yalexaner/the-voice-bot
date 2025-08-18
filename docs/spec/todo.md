@@ -115,13 +115,13 @@ Use this as a step-by-step checklist. Each box should be checkable in a single w
 
 ---
 
-## 6) Telegram Webhook Receiver 🚧 PARTIALLY COMPLETED
+## 6) Telegram Webhook Receiver ✅ COMPLETED
 
-* [x] Add webhook route: `POST /webhook/{WEBHOOK_PATH}` — ✅ Route exists in Application.kt:43
+* [x] Add webhook route: `POST /webhook/{WEBHOOK_PATH}` — ✅ Implemented in Application.kt:92-113
 * [x] Validate header `X-Telegram-Bot-Api-Secret-Token == WEBHOOK_SECRET` → otherwise 401 — ✅ Validation implemented
-* [ ] Parse Telegram `Update` JSON (DTOs or pengrad models) — ⚠️ TODO: needs Update parsing
-* [ ] Implement a minimal **sendMessage** helper (pengrad client) — ⚠️ TODO: needs sendMessage implementation
-* [ ] Log inbound update type (text, voice, command) — ⚠️ TODO: needs logging
+* [x] Parse Telegram `Update` JSON (DTOs or pengrad models) — ✅ Implemented in WebhookHandler.kt
+* [x] Implement a minimal **sendMessage** helper (pengrad client) — ✅ Implemented in TelegramClient.kt
+* [x] Log inbound update type (text, voice, command) — ✅ Logging implemented in WebhookHandler.kt
 
 ---
 
