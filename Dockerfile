@@ -34,9 +34,7 @@ RUN chown voicebot:voicebot /app/app.jar
 USER voicebot
 WORKDIR /app
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f -H "X-Admin-Token: ${ADMIN_HTTP_TOKEN}" http://localhost:8080/health || exit 1
+# Health checks are handled by Docker Compose (see docker-compose.*.yml)
 
 # Expose port
 EXPOSE 8080

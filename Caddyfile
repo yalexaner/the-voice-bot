@@ -22,9 +22,8 @@ your-domain.com {
     reverse_proxy bot:8080 {
       header_up Host {host}
       header_up X-Telegram-Bot-Api-Secret-Token {http.request.header.X-Telegram-Bot-Api-Secret-Token}
+      # Caddy automatically sets X-Forwarded-For with client IP
       header_up X-Real-IP {remote_host}
-      header_up X-Forwarded-For {remote_host}
-      header_up X-Forwarded-Proto {scheme}
     }
   }
 
@@ -32,18 +31,16 @@ your-domain.com {
   handle /health {
     reverse_proxy bot:8080 {
       header_up Host {host}
+      # Caddy automatically sets X-Forwarded-For with client IP
       header_up X-Real-IP {remote_host}
-      header_up X-Forwarded-For {remote_host}
-      header_up X-Forwarded-Proto {scheme}
     }
   }
 
   handle /metrics {
     reverse_proxy bot:8080 {
       header_up Host {host}
+      # Caddy automatically sets X-Forwarded-For with client IP
       header_up X-Real-IP {remote_host}
-      header_up X-Forwarded-For {remote_host}
-      header_up X-Forwarded-Proto {scheme}
     }
   }
 
