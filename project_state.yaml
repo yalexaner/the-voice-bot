@@ -1,0 +1,41 @@
+# A self-updating, machine-first context file for the AI assistant.
+meta:
+  schema_version: "1.0"
+  last_updated: "2025-08-22T10:41:27Z"
+  state_seq: 1
+  state_hash: "sha256:D05BC410E185374C2111B9081D27AD93D0609F378BECA7102423C6F9C93896AE"
+  applier: { tool: "cline-bot", model: "unknown", version: "1.0", applied_at: "2025-08-22T10:41:27Z" }
+
+overview:
+  architecture: "Kotlin JVM application using Ktor for server, Exposed for database access, and deployed with Docker."
+  key_patterns: ["Dependency Injection (manual)", "Repository pattern for data access."]
+  constraints: ["All database operations should be within transactions.", "Sensitive configuration must be loaded from environment variables."]
+
+capabilities:
+  - id: "cap:telegram_bot_webhook"
+    summary: "Receives and processes incoming messages from the Telegram Bot API via webhook."
+    entrypoint: "sym:ApplicationKt#main"
+  - id: "cap:health_check"
+    summary: "Provides an HTTP endpoint to verify the application's operational status."
+    entrypoint: "sym:ApplicationKt#main" # Assumed to be configured within Ktor setup
+
+models:
+  - id: "model:Config"
+    summary: "Holds application configuration loaded from environment variables."
+    source_file: "src/main/kotlin/config/Config.kt"
+
+symbols:
+  - id: "sym:ApplicationKt#main"
+    path: "src/main/kotlin/Application.kt"
+    summary: "The main entry point of the application. Initializes the Ktor server and bot."
+  - id: "sym:config.Config"
+    path: "src/main/kotlin/config/Config.kt"
+    summary: "Data class and loader for application settings."
+
+delta:
+  log:
+    - at: "2025-08-22T10:41:27Z"
+      applier: "cline-bot@1.0"
+      changes:
+        added: ["meta", "overview", "capabilities", "models", "symbols", "delta"]
+      progress_note: "docs/progress/2025-08-22-initial-project-state-creation.md"
