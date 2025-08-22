@@ -5,6 +5,10 @@ meta:
   state_seq: 1
   state_hash: "sha256:D05BC410E185374C2111B9081D27AD93D0609F378BECA7102423C6F9C93896AE"
   applier: { tool: "cline-bot", model: "unknown", version: "1.0", applied_at: "2025-08-22T10:41:27Z" }
+  state_hash_algorithm: "sha256"
+  hash_basis: "canonical_yaml_without_meta"
+  owners: ["@yalexaner"]
+  source_of_truth: "repo"
 
 overview:
   architecture: "Kotlin JVM application using Ktor for server, Exposed for database access, and deployed with Docker."
@@ -15,26 +19,82 @@ capabilities:
   - id: "cap:telegram_bot_webhook"
     summary: "Receives and processes incoming messages from the Telegram Bot API via webhook."
     entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "POST"
+        path: "${WEBHOOK_PATH}" # Dynamic path from env var
+        port: 8080
+      security:
+        verification_header: "X-Telegram-Bot-Api-Secret-Token"
+      env_vars:
+        - "TELEGRAM_BOT_TOKEN"
+        - "WEBHOOK_SECRET"
+        - "WEBHOOK_PATH"
   - id: "cap:health_check"
     summary: "Provides an HTTP endpoint to verify the application's operational status."
-    entrypoint: "sym:ApplicationKt#main" # Assumed to be configured within Ktor setup
+    entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "GET"
+        path: "/health"
+        port: 8080
+      env_vars:
+        - "ADMIN_HTTP_TOKEN"
 
 models:
   - id: "model:Config"
     summary: "Holds application configuration loaded from environment variables."
     source_file: "src/main/kotlin/config/Config.kt"
+    fields:
+      - name: "TELEGRAM_BOT_TOKEN"
+        required: true
+        binds_to: "config.Config#telegramBotToken"
+      - name: "TELEGRAM_ADMIN_ID"
+        required: true
+        type: "Long"
+        binds_to: "config.Config#telegramAdminId"
+      - name: "ELEVENLABS_API_KEY"
+        required: true
+        binds_to: "config.Config#elevenLabsApiKey"
+      - name: "WEBHOOK_PATH"
+        required: true
+        validation: "min 32 characters"
+        binds_to: "config.Config#webhookPath"
+      - name: "WEBHOOK_SECRET"
+        required: true
+        validation: "min 64 characters"
+        binds_to: "config.Config#webhookSecret"
+      - name: "ADMIN_HTTP_TOKEN"
+        required: true
+        binds_to: "config.Config#adminHttpToken"
+      - name: "ENV"
+        required: false
+        default: "staging"
+        validation: "must be 'staging' or 'prod'"
+        binds_to: "config.Config#env"
+      - name: "PORT"
+        required: false
+        default: 8080
+        type: "Int"
+        validation: "range 1-65535"
+        binds_to: "config.Config#port"
 
 symbols:
   - id: "sym:ApplicationKt#main"
     path: "src/main/kotlin/Application.kt"
     summary: "The main entry point of the application. Initializes the Ktor server and bot."
+    language: "kotlin"
+    kind: "function"
   - id: "sym:config.Config"
     path: "src/main/kotlin/config/Config.kt"
     summary: "Data class and loader for application settings."
+    language: "kotlin"
+    kind: "class"
 
 delta:
   log:
     - at: "2025-08-22T10:41:27Z"
+      seq: 1
       applier: "cline-bot@1.0"
       changes:
         added: ["meta", "overview", "capabilities", "models", "symbols", "delta"]
