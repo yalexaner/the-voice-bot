@@ -9,6 +9,11 @@ meta:
   hash_basis: "canonical_yaml_without_meta"
   owners: ["@yalexaner"]
   source_of_truth: "repo"
+  repo:
+    vcs: "git"
+    origin: "https://github.com/yalexaner/the-voice-bot.git"
+    default_branch: "master"
+    commit: "1abd4c519a167dcf7f19fd19e571c3cce4c4356a"
 
 overview:
   architecture: "Kotlin JVM application using Ktor for server, Exposed for database access, and deployed with Docker."
@@ -23,7 +28,7 @@ capabilities:
       http:
         method: "POST"
         path: "${WEBHOOK_PATH}" # Dynamic path from env var
-        port: 8080
+        port: "${PORT}"
       security:
         verification_header: "X-Telegram-Bot-Api-Secret-Token"
       env_vars:
@@ -37,7 +42,14 @@ capabilities:
       http:
         method: "GET"
         path: "/health"
-        port: 8080
+        port: "${PORT}"
+      security:
+        authentication:
+          required: true
+          scheme: "bearer"
+          header: "Authorization"
+          token_env: "ADMIN_HTTP_TOKEN"
+        exposure: "internal"
       env_vars:
         - "ADMIN_HTTP_TOKEN"
 
@@ -58,11 +70,13 @@ models:
         binds_to: "config.Config#elevenLabsApiKey"
       - name: "WEBHOOK_PATH"
         required: true
-        validation: "min 32 characters"
+        constraints:
+          min_length: 32
         binds_to: "config.Config#webhookPath"
       - name: "WEBHOOK_SECRET"
         required: true
-        validation: "min 64 characters"
+        constraints:
+          min_length: 64
         binds_to: "config.Config#webhookSecret"
       - name: "ADMIN_HTTP_TOKEN"
         required: true
@@ -70,13 +84,16 @@ models:
       - name: "ENV"
         required: false
         default: "staging"
-        validation: "must be 'staging' or 'prod'"
+        constraints:
+          enum: ["staging", "prod"]
         binds_to: "config.Config#env"
       - name: "PORT"
         required: false
         default: 8080
         type: "Int"
-        validation: "range 1-65535"
+        constraints:
+          min: 1
+          max: 65535
         binds_to: "config.Config#port"
 
 symbols:
