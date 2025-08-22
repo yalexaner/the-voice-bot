@@ -1,6 +1,6 @@
 # Telegram Voice-to-Text Bot
 
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/yalexaner/the-voice-bot?utm_source=oss&utm_medium=github&utm_campaign=yalexaner%2Fthe-voice-bot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+[![CodeRabbit Reviews](https://img.shields.io/coderabbit/prs/github/yalexaner/the-voice-bot?labelColor=171717&color=FF570A&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 
 A Telegram bot that transcribes voice messages to Russian text using ElevenLabs API. Built with Kotlin, Ktor, and Docker for production deployment with automatic HTTPS via Caddy.
 
