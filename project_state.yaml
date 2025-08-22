@@ -1,0 +1,145 @@
+# A self-updating, machine-first context file for the AI assistant.
+meta:
+  schema_version: "1.0"
+  last_updated: "2025-08-22T10:41:27Z"
+  state_seq: 1
+  state_hash: "sha256:D05BC410E185374C2111B9081D27AD93D0609F378BECA7102423C6F9C93896AE"
+  applier: { tool: "cline-bot", model: "N/A", version: "1.0", applied_at: "2025-08-22T10:41:27Z" }
+  state_hash_algorithm: "sha256"
+  hash_basis: "canonical_yaml_without_meta"
+  owners: ["@yalexaner"]
+  source_of_truth: "repo"
+  repo:
+    vcs: "git"
+    origin: "https://github.com/yalexaner/the-voice-bot.git"
+    default_branch: "master"
+    commit: "1abd4c519a167dcf7f19fd19e571c3cce4c4356a"
+
+overview:
+  architecture: "Kotlin JVM application using Ktor for server, Exposed for database access, and deployed with Docker."
+  key_patterns: ["Dependency Injection (manual)", "Repository pattern for data access."]
+  constraints: ["All database operations should be within transactions.", "Sensitive configuration must be loaded from environment variables."]
+
+capabilities:
+  - id: "cap:telegram_bot_webhook"
+    summary: "Receives and processes incoming messages from the Telegram Bot API via webhook."
+    entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "POST"
+        path: "${WEBHOOK_PATH}" # Dynamic path from env var
+        port: "${PORT}"
+      security:
+        verification_header: "X-Telegram-Bot-Api-Secret-Token"
+      env_vars:
+        - "TELEGRAM_BOT_TOKEN"
+        - "WEBHOOK_SECRET"
+        - "WEBHOOK_PATH"
+        - "PORT"
+  - id: "cap:liveness_check"
+    summary: "Unauthenticated liveness probe endpoint."
+    entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "GET"
+        path: "/healthz"
+        port: "${PORT}"
+      security:
+        authentication:
+          required: false
+        exposure: "internal"
+      env_vars:
+        - "PORT"
+  - id: "cap:readiness_check"
+    summary: "Authenticated readiness endpoint."
+    entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "GET"
+        path: "/readyz"
+        port: "${PORT}"
+      security:
+        authentication:
+          required: true
+          scheme: "bearer"
+          header: "Authorization"
+          token_env: "ADMIN_HTTP_TOKEN"
+        exposure: "internal"
+      env_vars:
+        - "ADMIN_HTTP_TOKEN"
+        - "PORT"
+
+models:
+  - id: "model:Config"
+    summary: "Holds application configuration loaded from environment variables."
+    source_file: "src/main/kotlin/config/Config.kt"
+    fields:
+      - name: "TELEGRAM_BOT_TOKEN"
+        required: true
+        constraints:
+          regex: "^\\d{5,}:[A-Za-z0-9_-]{20,}$"
+        binds_to: "config.Config#telegramBotToken"
+      - name: "TELEGRAM_ADMIN_ID"
+        required: true
+        type: "Long"
+        constraints:
+          min: 1
+        binds_to: "config.Config#telegramAdminId"
+      - name: "ELEVENLABS_API_KEY"
+        required: true
+        constraints:
+          min_length: 20
+        binds_to: "config.Config#elevenLabsApiKey"
+      - name: "WEBHOOK_PATH"
+        required: true
+        constraints:
+          min_length: 32
+          regex: "^[A-Za-z0-9_-]{32,}$"
+        binds_to: "config.Config#webhookPath"
+      - name: "WEBHOOK_SECRET"
+        required: true
+        constraints:
+          min_length: 64
+          regex: "^[A-Za-z0-9_-]{64,}$"
+        binds_to: "config.Config#webhookSecret"
+      - name: "ADMIN_HTTP_TOKEN"
+        required: true
+        constraints:
+          min_length: 32
+          regex: "^[A-Za-z0-9_-]{32,}$"
+        binds_to: "config.Config#adminHttpToken"
+      - name: "ENV"
+        required: false
+        default: "staging"
+        constraints:
+          enum: ["staging", "prod"]
+        binds_to: "config.Config#env"
+      - name: "PORT"
+        required: false
+        default: 8080
+        type: "Int"
+        constraints:
+          min: 1
+          max: 65535
+        binds_to: "config.Config#port"
+
+symbols:
+  - id: "sym:ApplicationKt#main"
+    path: "src/main/kotlin/Application.kt"
+    summary: "The main entry point of the application. Initializes the Ktor server and bot."
+    language: "kotlin"
+    kind: "function"
+  - id: "sym:config.Config"
+    path: "src/main/kotlin/config/Config.kt"
+    summary: "Data class and loader for application settings."
+    language: "kotlin"
+    kind: "class"
+
+delta:
+  log:
+    - at: "2025-08-22T10:41:27Z"
+      seq: 1
+      applier: "cline-bot@1.0"
+      changes:
+        added: ["meta", "overview", "capabilities", "models", "symbols", "delta"]
+      progress_note: "docs/progress/2025-08-22-initial-project-state-creation.md"
