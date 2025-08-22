@@ -14,6 +14,14 @@ data class Config(
     val port: Int = 8080,
     val enableTestAcks: Boolean = false
 ) {
+    /**
+     * Returns a string representation of this Config with sensitive fields redacted.
+     *
+     * Tokens, IDs and secrets are replaced with `***MASKED***` to avoid leaking credentials;
+     * non-sensitive fields (`env`, `port`, `enableTestAcks`) are shown.
+     *
+     * @return A redacted string representation suitable for logging or diagnostics.
+     */
     override fun toString(): String {
         return "Config(" +
             "telegramBotToken=***MASKED***, " +
@@ -30,6 +38,19 @@ data class Config(
 }
 
 object ConfigLoader {
+    /**
+     * Loads configuration from environment variables, validates them, and returns a populated [Config].
+     *
+     * Reads required variables (TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_ID, ELEVENLABS_API_KEY,
+     * WEBHOOK_PATH, WEBHOOK_SECRET, ADMIN_HTTP_TOKEN) and optional variables (ENV, PORT, ENABLE_TEST_ACKS).
+     * Performs validation of TELEGRAM_ADMIN_ID (must be a long), minimum lengths for WEBHOOK_PATH and WEBHOOK_SECRET,
+     * allowed values for ENV ("staging" or "prod"), and PORT range (1..65535). If ENV is "prod" and PORT != 8080,
+     * a warning is emitted to standard error.
+     *
+     * @return a validated [Config] instance constructed from the environment.
+     * @throws IllegalStateException if any required variables are missing or any validation checks fail;
+     *         the exception message lists all configuration errors.
+     */
     fun load(): Config {
         val errors = mutableListOf<String>()
         

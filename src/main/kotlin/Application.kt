@@ -39,6 +39,28 @@ data class ErrorResponse(
     val message: String
 )
 
+/**
+ * Application entry point: loads configuration, initializes services, and starts the HTTP server.
+ *
+ * Attempts to load configuration via ConfigLoader.load() and exits the process with code 1 if loading
+ * fails with an IllegalStateException. Initializes the Telegram client and configures webhook handling.
+ * Starts an embedded Ktor Netty server bound to 0.0.0.0 on the configured port (blocking).
+ *
+ * The server installs JSON content negotiation (pretty print, lenient, ignore unknown keys), forwarded
+ * header handling, and status page handlers for unhandled exceptions (returns 500) and not-found (404).
+ *
+ * Routes:
+ * - GET /health: Admin-only (requires X-Admin-Token header matching config.adminHttpToken). Returns
+ *   HealthResponse with uptime in seconds.
+ * - GET /metrics: Admin-only (same auth). Returns MetricsResponse with uptime; other metrics are placeholders.
+ * - POST /webhook/{path}: Validates the path against config.webhookPath and the X-Telegram-Bot-Api-Secret-Token
+ *   header against config.webhookSecret. On successful validation delegates handling to WebhookHandler.handle(call).
+ *
+ * Side effects:
+ * - May call kotlin.system.exitProcess(1) on configuration load failure.
+ * - Initializes TelegramClient and WebhookHandler.
+ * - Starts a blocking HTTP server.
+ */
 fun main() {
     val config = try {
         ConfigLoader.load()
