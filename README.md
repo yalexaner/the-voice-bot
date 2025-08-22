@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/icon.png" alt="Voice Bot Logo" width="200" height="200">
+</div>
+
 # Telegram Voice-to-Text Bot
 
 [![CodeRabbit Reviews](https://img.shields.io/coderabbit/prs/github/yalexaner/the-voice-bot?labelColor=171717&color=FF570A&label=CodeRabbit+Reviews)](https://coderabbit.ai)
