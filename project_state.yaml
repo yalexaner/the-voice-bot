@@ -4,7 +4,7 @@ meta:
   last_updated: "2025-08-22T10:41:27Z"
   state_seq: 1
   state_hash: "sha256:D05BC410E185374C2111B9081D27AD93D0609F378BECA7102423C6F9C93896AE"
-  applier: { tool: "cline-bot", model: "unknown", version: "1.0", applied_at: "2025-08-22T10:41:27Z" }
+  applier: { tool: "cline-bot", model: "N/A", version: "1.0", applied_at: "2025-08-22T10:41:27Z" }
   state_hash_algorithm: "sha256"
   hash_basis: "canonical_yaml_without_meta"
   owners: ["@yalexaner"]
@@ -35,13 +35,28 @@ capabilities:
         - "TELEGRAM_BOT_TOKEN"
         - "WEBHOOK_SECRET"
         - "WEBHOOK_PATH"
-  - id: "cap:health_check"
-    summary: "Provides an HTTP endpoint to verify the application's operational status."
+        - "PORT"
+  - id: "cap:liveness_check"
+    summary: "Unauthenticated liveness probe endpoint."
     entrypoint: "sym:ApplicationKt#main"
     interface:
       http:
         method: "GET"
-        path: "/health"
+        path: "/healthz"
+        port: "${PORT}"
+      security:
+        authentication:
+          required: false
+        exposure: "internal"
+      env_vars:
+        - "PORT"
+  - id: "cap:readiness_check"
+    summary: "Authenticated readiness endpoint."
+    entrypoint: "sym:ApplicationKt#main"
+    interface:
+      http:
+        method: "GET"
+        path: "/readyz"
         port: "${PORT}"
       security:
         authentication:
@@ -52,6 +67,7 @@ capabilities:
         exposure: "internal"
       env_vars:
         - "ADMIN_HTTP_TOKEN"
+        - "PORT"
 
 models:
   - id: "model:Config"
@@ -60,26 +76,37 @@ models:
     fields:
       - name: "TELEGRAM_BOT_TOKEN"
         required: true
+        constraints:
+          regex: "^\\d{5,}:[A-Za-z0-9_-]{20,}$"
         binds_to: "config.Config#telegramBotToken"
       - name: "TELEGRAM_ADMIN_ID"
         required: true
         type: "Long"
+        constraints:
+          min: 1
         binds_to: "config.Config#telegramAdminId"
       - name: "ELEVENLABS_API_KEY"
         required: true
+        constraints:
+          min_length: 20
         binds_to: "config.Config#elevenLabsApiKey"
       - name: "WEBHOOK_PATH"
         required: true
         constraints:
           min_length: 32
+          regex: "^[A-Za-z0-9_-]{32,}$"
         binds_to: "config.Config#webhookPath"
       - name: "WEBHOOK_SECRET"
         required: true
         constraints:
           min_length: 64
+          regex: "^[A-Za-z0-9_-]{64,}$"
         binds_to: "config.Config#webhookSecret"
       - name: "ADMIN_HTTP_TOKEN"
         required: true
+        constraints:
+          min_length: 32
+          regex: "^[A-Za-z0-9_-]{32,}$"
         binds_to: "config.Config#adminHttpToken"
       - name: "ENV"
         required: false
