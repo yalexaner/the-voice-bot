@@ -8,33 +8,31 @@ import org.slf4j.LoggerFactory
 
 object TelegramClient {
     private val logger = LoggerFactory.getLogger(TelegramClient::class.java)
-    private lateinit var bot: TelegramBot
-
-    fun init(botToken: String) {
-        if (::bot.isInitialized) {
-            logger.debug("telegram client already initialized, skipping")
-            return
-        }
-        bot = TelegramBot(botToken)
-        logger.info("telegram client initialized")
+    
+    private var botToken: String? = null
+    private val bot: TelegramBot by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val token = botToken ?: error("TelegramBot not initialized - call init() first")
+        logger.info("initializing telegram bot")
+        TelegramBot(token)
     }
 
-    suspend fun sendMessage(chatId: Long, text: String, replyToMessageId: Int? = null) {
-        if (!::bot.isInitialized) {
-            logger.warn("telegram client not initialized; dropping message to chat {}", chatId)
-            return
-        }
+    fun init(botToken: String) {
+        this.botToken = botToken
+        logger.debug("telegram client configured")
+    }
+
+    suspend fun sendMessage(chatId: Long, text: String, replyToId: Int? = null) {
         withContext(Dispatchers.IO) {
             try {
                 val request = SendMessage(chatId, text).apply {
-                    replyToMessageId?.let { replyToMessageId(it) }
+                    replyToId?.let { this.replyToMessageId(it) }
                 }
                 val response = bot.execute(request)
                 if (!response.isOk) {
                     logger.error("failed to send message to chat {}: {}", chatId, response.description())
                 }
             } catch (e: Exception) {
-                logger.error("error sending message to chat {}: {}", chatId, e.message, e)
+                logger.error("error sending message to chat {}", chatId, e)
             }
         }
     }

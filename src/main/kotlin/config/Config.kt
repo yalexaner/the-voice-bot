@@ -42,7 +42,7 @@ object ConfigLoader {
         
         val env = System.getenv("ENV") ?: "staging"
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-        val enableTestAcks = System.getenv("ENABLE_TEST_ACKS")?.toBoolean() ?: false
+        val enableTestAcks = parseBooleanEnv("ENABLE_TEST_ACKS", false)
         
         // Validate admin ID
         val telegramAdminId = try {
@@ -80,6 +80,11 @@ object ConfigLoader {
             System.err.println("WARNING: PORT is set to $port in production environment, but Caddy expects 8080. This may break internal routing.")
         }
         
+        // Warn if test acknowledgments are enabled in production
+        if (env == "prod" && enableTestAcks) {
+            System.err.println("WARNING: ENABLE_TEST_ACKS is enabled in production. This may spam user chats with test messages.")
+        }
+        
         if (errors.isNotEmpty()) {
             val errorMessage = buildString {
                 appendLine("Configuration errors:")
@@ -107,6 +112,18 @@ object ConfigLoader {
         return System.getenv(name) ?: run {
             errors.add("$name is required but not set")
             null
+        }
+    }
+    
+    private fun parseBooleanEnv(name: String, default: Boolean): Boolean {
+        val value = System.getenv(name)?.trim()?.lowercase() ?: return default
+        return when (value) {
+            "1", "true", "yes", "on", "y", "t" -> true
+            "0", "false", "no", "off", "n", "f" -> false
+            else -> {
+                System.err.println("WARNING: Invalid boolean value '$value' for $name, using default: $default")
+                default
+            }
         }
     }
 }

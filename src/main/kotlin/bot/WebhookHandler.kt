@@ -1,5 +1,6 @@
 package bot
 
+import com.pengrad.telegrambot.utility.BotUtils
 import com.pengrad.telegrambot.model.MessageEntity
 import com.pengrad.telegrambot.model.Update
 import io.ktor.http.*
@@ -9,7 +10,6 @@ import io.ktor.server.response.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
-import telegram.UpdateParser
 
 @Serializable
 data class WebhookAck(val status: String)
@@ -25,39 +25,50 @@ object WebhookHandler {
     suspend fun handle(call: ApplicationCall) {
         try {
             // validate content type
-            val contentType = call.request.headers[HttpHeaders.ContentType]
-            if (contentType?.startsWith(ContentType.Application.Json.toString()) != true) {
-                logger.warn("Unexpected Content-Type: {}", contentType)
+            val ct = call.request.contentType()
+            if (ct.withoutParameters() != ContentType.Application.Json) {
+                logger.warn("unexpected content-type: {}", ct)
             }
             
+            // parse JSON before responding
             val rawJson = call.receiveText()
-            val update = UpdateParser.parse(rawJson)
-            
-            if (update == null) {
-                logger.warn("received null or invalid update from parsing")
-                call.respond(HttpStatusCode.OK, WebhookAck("ok"))
+            val update = try {
+                BotUtils.parseUpdate(rawJson)
+            } catch (e: Exception) {
+                logger.debug("failed to parse telegram update", e)
+                call.respond(HttpStatusCode.BadRequest, "invalid json")
                 return
             }
             
+            // respond OK immediately after successful parse
+            call.respond(HttpStatusCode.OK, WebhookAck("ok"))
+            
+            // process update asynchronously
+            call.application.launch {
+                processUpdate(update)
+            }
+        } catch (e: Exception) {
+            logger.error("error processing webhook", e)
+            call.respond(HttpStatusCode.InternalServerError)
+        }
+    }
+    
+    private suspend fun processUpdate(update: Update) {
+        try {
             val updateType = determineUpdateType(update)
             val chatId = chatIdOf(update)
             val messageId = update.message()?.messageId()
             
-            logger.info("received update {} of type '{}' from chat {}", update.updateId(), updateType, chatId)
+            logger.info("processing update {} of type '{}' from chat {}", update.updateId(), updateType, chatId)
             
-            // send acknowledgment message for testing (async to avoid blocking webhook response)
+            // send acknowledgment message for testing (async)
             val from = update.message()?.from()
             val isBot = from?.isBot == true
             if (ackEnabled && !isBot && chatId != null && messageId != null) {
-                call.application.launch {
-                    TelegramClient.sendMessage(chatId, "✅ $updateType received", messageId)
-                }
+                TelegramClient.sendMessage(chatId, "✅ $updateType received", messageId)
             }
-            
-            call.respond(HttpStatusCode.OK, WebhookAck("ok"))
         } catch (e: Exception) {
-            logger.error("error processing webhook: {}", e.message, e)
-            call.respond(HttpStatusCode.OK, WebhookAck("ok"))
+            logger.error("error processing update {}", update.updateId(), e)
         }
     }
     
