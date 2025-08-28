@@ -56,6 +56,9 @@ dependencies {
     
     // Date/Time
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+
+    // JSON Processing - Updated for security (CVE protection)
+    implementation("com.google.code.gson:gson:2.13.1")
 }
 
 kotlin {
