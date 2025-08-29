@@ -11,7 +11,8 @@ data class Config(
     val webhookSecret: String,
     val adminHttpToken: String,
     val env: String = "staging",
-    val port: Int = 8080
+    val port: Int = 8080,
+    val enableTestAcks: Boolean = false
 ) {
     override fun toString(): String {
         return "Config(" +
@@ -22,7 +23,8 @@ data class Config(
             "webhookSecret=***MASKED***, " +
             "adminHttpToken=***MASKED***, " +
             "env='$env', " +
-            "port=$port" +
+            "port=$port, " +
+            "enableTestAcks=$enableTestAcks" +
             ")"
     }
 }
@@ -40,6 +42,7 @@ object ConfigLoader {
         
         val env = System.getenv("ENV") ?: "staging"
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+        val enableTestAcks = parseBooleanEnv("ENABLE_TEST_ACKS", false)
         
         // Validate admin ID
         val telegramAdminId = try {
@@ -52,14 +55,26 @@ object ConfigLoader {
             0L
         }
         
-        // Validate webhook path length
-        if (webhookPath != null && webhookPath.length < 32) {
-            errors.add("WEBHOOK_PATH should be at least 32 characters for security")
+        // Validate webhook path length and character set
+        if (webhookPath != null) {
+            if (webhookPath.length < 32) {
+                errors.add("WEBHOOK_PATH should be at least 32 characters for security")
+            }
+            // Validate that webhook path contains only URL-safe characters
+            val urlSafeRegex = Regex("^[A-Za-z0-9_-]+$")
+            if (!webhookPath.matches(urlSafeRegex)) {
+                errors.add("WEBHOOK_PATH must contain only alphanumeric characters, underscores, and hyphens")
+            }
         }
         
         // Validate webhook secret length
         if (webhookSecret != null && webhookSecret.length < 64) {
             errors.add("WEBHOOK_SECRET should be at least 64 characters for security")
+        }
+        
+        // Validate admin token length
+        if (adminHttpToken != null && adminHttpToken.length < 32) {
+            errors.add("ADMIN_HTTP_TOKEN should be at least 32 characters for security")
         }
         
         // Validate ENV value
@@ -75,6 +90,19 @@ object ConfigLoader {
         // Warn if PORT is not 8080 in production (Caddy expects 8080)
         if (env == "prod" && port != 8080) {
             System.err.println("WARNING: PORT is set to $port in production environment, but Caddy expects 8080. This may break internal routing.")
+        }
+        
+        // Production environment security checks
+        if (env == "prod") {
+            // Fail fast if webhook secret is missing in production
+            if (webhookSecret.isNullOrBlank()) {
+                errors.add("WEBHOOK_SECRET is required and cannot be empty in production environment")
+            }
+            
+            // Fail fast if test acknowledgments are enabled in production
+            if (enableTestAcks) {
+                errors.add("ENABLE_TEST_ACKS must be disabled (false) in production environment for security")
+            }
         }
         
         if (errors.isNotEmpty()) {
@@ -95,7 +123,8 @@ object ConfigLoader {
             webhookSecret = webhookSecret!!,
             adminHttpToken = adminHttpToken!!,
             env = env,
-            port = port
+            port = port,
+            enableTestAcks = enableTestAcks
         )
     }
     
@@ -103,6 +132,18 @@ object ConfigLoader {
         return System.getenv(name) ?: run {
             errors.add("$name is required but not set")
             null
+        }
+    }
+    
+    private fun parseBooleanEnv(name: String, default: Boolean): Boolean {
+        val value = System.getenv(name)?.trim()?.lowercase() ?: return default
+        return when (value) {
+            "1", "true", "yes", "on", "y", "t" -> true
+            "0", "false", "no", "off", "n", "f" -> false
+            else -> {
+                System.err.println("WARNING: Invalid boolean value '$value' for $name, using default: $default")
+                default
+            }
         }
     }
 }

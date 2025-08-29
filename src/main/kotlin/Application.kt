@@ -1,3 +1,5 @@
+import bot.TelegramClient
+import bot.WebhookHandler
 import config.ConfigLoader
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -13,9 +15,22 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import kotlin.system.measureTimeMillis
 
 private val logger = LoggerFactory.getLogger("Application")
+
+/**
+ * Extract the real client IP from X-Forwarded-For header or fall back to remote host.
+ * X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2" - we want the first one.
+ */
+private fun ApplicationCall.getClientIp(): String {
+    val forwardedFor = request.headers["X-Forwarded-For"]
+    return if (forwardedFor != null) {
+        // Take the first IP from the comma-separated list and trim whitespace
+        forwardedFor.split(",").first().trim()
+    } else {
+        request.local.remoteHost
+    }
+}
 
 @Serializable
 data class HealthResponse(
@@ -46,13 +61,19 @@ fun main() {
     }
     logger.info("Starting Voice Bot application with config: $config")
     
+    // initialize telegram client
+    TelegramClient.init(config.telegramBotToken)
+    
+    // configure webhook handler
+    WebhookHandler.configure(config.enableTestAcks)
+    
     val startTime = System.currentTimeMillis()
     
     embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
         install(ContentNegotiation) {
             json(Json {
-                prettyPrint = true
-                isLenient = true
+                prettyPrint = (config.env != "prod")  // Disable pretty printing in production for performance
+                isLenient = (config.env != "prod")    // Disable lenient parsing in production for strictness
                 ignoreUnknownKeys = true
             })
         }
@@ -62,7 +83,7 @@ fun main() {
         
         install(StatusPages) {
             exception<Throwable> { call, cause ->
-                val clientIp = call.request.headers["X-Forwarded-For"] ?: call.request.local.remoteHost
+                val clientIp = call.getClientIp()
                 logger.error("Unhandled exception in request ${call.request.uri} from $clientIp", cause)
                 // TODO: Later this will send DM to admin via Telegram
                 call.respond(
@@ -103,25 +124,17 @@ fun main() {
             }
             
             // Webhook endpoint placeholder - will be implemented in later phases
-            post("/webhook/{path}") {
-                val webhookPath = call.parameters["path"]
-                if (webhookPath != config.webhookPath) {
-                    call.respond(HttpStatusCode.NotFound)
-                    return@post
-                }
-                
+            post("/webhook/${config.webhookPath}") {
                 // Validate webhook secret
                 val telegramSecret = call.request.headers["X-Telegram-Bot-Api-Secret-Token"]
                 if (telegramSecret != config.webhookSecret) {
-                    val clientIp = call.request.headers["X-Forwarded-For"] ?: call.request.local.remoteHost
+                    val clientIp = call.getClientIp()
                     logger.warn("Invalid webhook secret from $clientIp")
                     call.respond(HttpStatusCode.Unauthorized)
                     return@post
                 }
                 
-                // TODO: Implement webhook handling in later phases
-                logger.info("Webhook received (not yet implemented)")
-                call.respond(HttpStatusCode.OK, mapOf("status" to "received"))
+                WebhookHandler.handle(call)
             }
             
         }
