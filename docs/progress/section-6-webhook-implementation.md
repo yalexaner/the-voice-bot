@@ -164,24 +164,72 @@ private fun determineUpdateType(update: Update): String {
 
 ## Future Considerations
 
-### When Implementing Similar Features:
+### When Implementing Similar Features
 - Start with production safety flags for any user-facing behavior
 - Consider all Telegram update types, not just messages
 - Always implement async patterns for external API calls
 - Add comprehensive logging with update IDs for debugging
 
-### When Debugging Similar Issues:
+### When Debugging Similar Issues
 - Check initialization order if getting `lateinit` crashes
 - Look for infinite loops in message processing
 - Verify webhook response timing if getting delivery issues
 - Validate JSON serialization consistency across all endpoints
 
+### 🔐 Security: Webhook Secret Token Validation
+To prevent spoofing, Telegram webhooks can be secured with a secret token. When you register your webhook, you can provide a secret token. This token will be sent with every webhook request in the `X-Telegram-Bot-Api-Secret-Token` header.
+
+It is critical to validate this token on the server-side to ensure that the request is from Telegram. The application does this automatically by comparing the header with the `WEBHOOK_SECRET` environment variable. If they do not match, the request is rejected with a `401 Unauthorized` status.
+
+Here is the implementation from `Application.kt`:
+```kotlin
+val telegramSecret = call.request.headers["X-Telegram-Bot-Api-Secret-Token"]
+if (telegramSecret != config.webhookSecret) {
+    val clientIp = call.request.headers["X-Forwarded-For"] ?: call.request.local.remoteHost
+    logger.warn("Invalid webhook secret from $clientIp")
+    call.respond(HttpStatusCode.Unauthorized)
+    return
+}
+```
+
+**Important Security Note:** Invalid webhook tokens return `401 Unauthorized` rather than `200 OK`. This is crucial because:
+- It allows proper monitoring and alerting of potential security breaches
+- Telegram will retry non-2xx responses, helping detect configuration issues
+- A `200 OK` response would silently ignore attacks, making them undetectable
+
 ## Dependencies Added
 ```kotlin
-implementation("com.google.code.gson:gson:2.11.0")  // For BotUtils compatibility
+implementation("com.google.code.gson:gson:2.11.0")  // Required by Pengrad BotUtils for JSON parsing
 ```
 
 ## Environment Variables
 ```bash
 ENABLE_TEST_ACKS=false  # Production safety flag
 ```
+
+### 🛡️ Production Safety: ENABLE_TEST_ACKS Flag
+
+The `ENABLE_TEST_ACKS` environment variable controls whether the bot sends acknowledgment messages for testing purposes. 
+
+**Purpose:**
+- When enabled (`true`), the bot responds to updates with "✅ {updateType} received" messages
+- Used for development and testing to verify webhook delivery and parsing
+- Should **always** be `false` in production environments
+
+**Security Enforcement:**
+The application includes startup validation that **prevents** launching in production with test acks enabled:
+
+```kotlin
+// Production environment security checks
+if (env == "prod") {
+    if (enableTestAcks) {
+        errors.add("ENABLE_TEST_ACKS must be disabled (false) in production environment for security")
+    }
+}
+```
+
+**Why This Matters:**
+- Test acknowledgments can spam user chats with system messages
+- May reveal internal bot logic and update processing to users
+- Could interfere with real bot functionality in production
+- Violates the principle of clean production deployments
