@@ -15,7 +15,6 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import kotlin.system.measureTimeMillis
 
 private val logger = LoggerFactory.getLogger("Application")
 
@@ -73,8 +72,8 @@ fun main() {
     embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
         install(ContentNegotiation) {
             json(Json {
-                prettyPrint = true
-                isLenient = true
+                prettyPrint = (config.env != "prod")  // Disable pretty printing in production for performance
+                isLenient = (config.env != "prod")    // Disable lenient parsing in production for strictness
                 ignoreUnknownKeys = true
             })
         }
